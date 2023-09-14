@@ -1,0 +1,22 @@
+﻿version: '3.4'
+
+services: 
+  web-api:
+    image: urlshortener
+    restart: always
+    build:
+      context: UrlShortener
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ConnectionStrings__Database: ""
+    ports:
+      - "5092:80"
+    depends_on: 
+      - db
+    
+  db:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: ""
+    restart: always

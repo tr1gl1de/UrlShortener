@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Url Shortener</title>
+    <link rel="stylesheet" href="https://unpkg.com/mvp.css" />
+</head>
+<body>
+<header><h1>Welcome to Url Shortener</h1></header>
+<main>
+    <section>
+        <aside style="width: 25rem;">
+            <label>
+                Enter the url
+                <input type="url" id="url" style="width: 22rem; margin: 0.5rem 0" />
+            </label>
+            <button type="button" id="btnSubmit" style="padding: 0.5rem 1rem">Submit</button>
+            <p id="urlResult"></p>
+            <p id="errorResult"></p>
+        </aside>
+    </section>
+</main>
+<script>
+    document.getElementById('btnSubmit')
+        .addEventListener('click', async e => {
+            e.preventDefault();
+            await handleSubmitAsync();
+        });
+
+    document.getElementById('url')
+        .addEventListener('keyup', async function (evt) {
+            if (evt.code === 'Enter') {
+                evt.preventDefault();
+                await handleSubmitAsync();
+            }
+        });
+
+    async function handleSubmitAsync() {
+        const url = document.getElementById('url').value;
+        
+        const errElement = document.getElementById('errorResult');
+        errElement.innerHTML = '';
+        const urlResElement = document.getElementById('urlResult');
+        urlResElement.innerHTML = '';
+
+        const json = { 'url': url };
+
+        const headers = { 'content-type': 'application/json' };
+
+        const response = await fetch('api/shorten', { method: 'post', body: JSON.stringify(json), headers: headers });
+        const apiResult = await response.json();
+        console.log(apiResult);
+        if (response.ok) {
+            urlResElement.innerHTML = `<a href=${apiResult} target="_blank">${apiResult}</a>`;
+        }
+        if (!response.ok) {
+            errElement.innerHTML = `<p>${apiResult}</p>`;            
+        }
+    }
+</script>
+</body>
+</html>
