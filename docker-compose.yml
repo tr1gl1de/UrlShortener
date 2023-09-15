@@ -20,3 +20,7 @@ services:
       ACCEPT_EULA: "Y"
       SA_PASSWORD: ""
     restart: always
+    volumes:
+      - ./data/data:/var/opt/mssql/data
+      - ./data/log:/var/opt/mssql/log
+      - ./data/secrets:/var/opt/mssql/secrets
