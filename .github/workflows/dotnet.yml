@@ -1,0 +1,62 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: .NET
+
+on:
+  push:
+    branches: [ "master", "dev", "dev*" ]
+  pull_request:
+    branches: [ "master", "dev" ]
+
+jobs:
+  build-and-tests:
+  
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 7.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+      
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: build docker images
+        run: docker compose build
+      - name: zip docker images
+        run: chmod +x ./docker-compose-images-save.sh docker-compose.yml
+        
+      - name: install sshpass
+        run: echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S apt-get install sshpass
+
+      - name: add dir
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "cd $HOME/ && rm url-shortener && mkdir url-shortener"
+        
+      - name: stop and remove old containers
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh -o "StrictHostKeyChecking=no" ${{ secrets.REMOTE_SERVER_SSH }} "cd $HOME/url-shortener ; docker-compose down ; rm docker-compose.yml ; rm docker-images.gz" || true
+        
+      - name: upload docker images
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} scp docker-images.gz ${{ secrets.REMOTE_SERVER_SSH }}:/home/max/url-shortener/docker-images.gz
+        
+      - name: upload docker compose file
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} scp docker-compose.yml ${{ secrets.REMOTE_SERVER_SSH }}:/home/max/url-shortener/docker-compose.yml
+        
+      - name: set db pass env
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S SA_PASSWORD=${{ secrets.SA_PASSWORD }}"
+      - name: set conn string env variable
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S ASPNETCORE_ConnectionStrings__Database=${{ secrets.DB_CONNECTION }}"
+        
+      - name: load image and start
+        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "cd /home/max/url-shortener && echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S docker load -i docker-images.gz && echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S docker-compose up -d --no-build"
+  
