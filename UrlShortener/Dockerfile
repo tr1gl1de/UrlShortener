@@ -4,7 +4,7 @@ EXPOSE 80
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
-COPY ["UrlShortener/UrlShortener.csproj", "UrlShortener/"]
+COPY ["UrlShortener.csproj", "UrlShortener/"]
 RUN dotnet restore "UrlShortener/UrlShortener.csproj"
 COPY . .
 WORKDIR "/src/UrlShortener"
