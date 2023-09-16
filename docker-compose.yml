@@ -2,25 +2,30 @@
 
 services: 
   web-api:
+    container_name: url-shortener
     image: urlshortener
     restart: always
     build:
       context: UrlShortener
       dockerfile: Dockerfile
     environment:
-      ASPNETCORE_ConnectionStrings__Database: ""
+#      ASPNETCORE_ConnectionStrings__Database: ${ASPNETCORE_ConnectionStrings__Database}
+      ASPNETCORE_ENVIRONMENT: "Development"
     ports:
       - "5092:80"
-    depends_on: 
-      - db
+#    depends_on: 
+#      - db
     
-  db:
-    image: mcr.microsoft.com/azure-sql-edge:latest
-    environment:
-      ACCEPT_EULA: "Y"
-      SA_PASSWORD: ""
-    restart: always
-    volumes:
-      - ./data/data:/var/opt/mssql/data
-      - ./data/log:/var/opt/mssql/log
-      - ./data/secrets:/var/opt/mssql/secrets
+#  db:
+#    container_name: db-url-shortener
+#    image: mcr.microsoft.com/azure-sql-edge:latest
+#    environment:
+#      ACCEPT_EULA: "Y"
+#      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+#    restart: always
+#    ports:
+#      - "1433:1433"
+#    volumes:
+#      - ./data/data:/var/opt/mssql/data
+#      - ./data/log:/var/opt/mssql/log
+#      - ./data/secrets:/var/opt/mssql/secrets

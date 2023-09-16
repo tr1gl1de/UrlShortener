@@ -1,7 +1,7 @@
 # This workflow will build a .NET project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-name: .NET
+name: CI/CD
 
 on:
   push:
@@ -9,9 +9,12 @@ on:
   pull_request:
     branches: [ "master", "dev" ]
 
+env: 
+  IMAGE_NAME: "urlshortener-image.tar"
+  SERVER_PATH_TO_PROJ: "/home/max/url-shoretener"
+
 jobs:
-  build-and-tests:
-  
+  tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,34 +32,64 @@ jobs:
       
   deploy:
     runs-on: ubuntu-latest
+    needs: 
+      - tests
 
     steps:
-      - uses: actions/checkout@v3
-      - name: build docker images
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Build docker images
         run: docker compose build
-      - name: zip docker images
-        run: chmod +x ./docker-compose-images-save.sh docker-compose.yml
         
-      - name: install sshpass
-        run: echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S apt-get install sshpass
+      - name: Zip app docker image
+        run: docker save urlshortener -o $IMAGE_NAME
+        
+      - name: Stop and remove old containers
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          envs: SERVER_PATH_TO_PROJ
+          script: |
+            cd "$SERVER_PATH_TO_PROJ"
+            docker-compose down || true
+            rm docker-compose.yml || true
+            rm urlshortener-image.tar || true
+            docker system prune -af
 
-      - name: add dir
-        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "cd $HOME/ && rm url-shortener && mkdir url-shortener"
+      - name: Upload docker images
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          source: "urlshortener-image.tar"
+          target: "/home/max/url-shoretener/"
+                      
+      - name: Upload docker compose file
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          overwrite: true
+          source: "docker-compose.yml"
+          target: "/home/max/url-shoretener/"
         
-      - name: stop and remove old containers
-        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh -o "StrictHostKeyChecking=no" ${{ secrets.REMOTE_SERVER_SSH }} "cd $HOME/url-shortener ; docker-compose down ; rm docker-compose.yml ; rm docker-images.gz" || true
-        
-      - name: upload docker images
-        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} scp docker-images.gz ${{ secrets.REMOTE_SERVER_SSH }}:/home/max/url-shortener/docker-images.gz
-        
-      - name: upload docker compose file
-        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} scp docker-compose.yml ${{ secrets.REMOTE_SERVER_SSH }}:/home/max/url-shortener/docker-compose.yml
-        
-      - name: set db pass env
-        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S SA_PASSWORD=${{ secrets.SA_PASSWORD }}"
-      - name: set conn string env variable
-        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S ASPNETCORE_ConnectionStrings__Database=${{ secrets.DB_CONNECTION }}"
-        
-      - name: load image and start
-        run: sshpass -p ${{ secrets.REMOTE_SERVER_SSH_PASS }} ssh ${{ secrets.REMOTE_SERVER_SSH }} "cd /home/max/url-shortener && echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S docker load -i docker-images.gz && echo ${{ secrets.REMOTE_SERVER_SSH_PASS }} | sudo -S docker-compose up -d --no-build"
-  
+      - name: set env vars and load image with start start
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          envs: IMAGE_NAME, SERVER_PATH_TO_PROJ
+          script: |
+            cd "$SERVER_PATH_TO_PROJ"
+            docker load -i "$IMAGE_NAME"
+            docker-compose up -d

@@ -6,8 +6,8 @@ FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
 COPY ["UrlShortener.csproj", "UrlShortener/"]
 RUN dotnet restore "UrlShortener/UrlShortener.csproj"
-COPY . .
 WORKDIR "/src/UrlShortener"
+COPY . .
 RUN dotnet build "UrlShortener.csproj" -c Release -o /app/build
 
 FROM build AS publish

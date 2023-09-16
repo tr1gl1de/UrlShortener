@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using UrlShortener;
 using UrlShortener.Entities;
-using UrlShortener.Extensions;
 using UrlShortener.Middlewares;
 using UrlShortener.Models;
 using UrlShortener.Services;
@@ -9,15 +8,13 @@ using UrlShortener.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.SetBasePath(builder.Environment.ContentRootPath);
-builder.Configuration.AddJsonFile("application.json", true, true);
-builder.Configuration.AddJsonFile($"application.{builder.Environment.EnvironmentName}.json", true, true);
 
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<ApplicationDbContext>(optionsBuilder => 
-    optionsBuilder.UseSqlServer(builder.Configuration.GetConnectionString("Database")));
+builder.Services.AddDbContext<ApplicationDbContext>(optionsBuilder =>
+    optionsBuilder.UseInMemoryDatabase("url-shortener-db"));
 builder.Services.AddScoped<UrlShorteningService>();
 
 var app = builder.Build();
@@ -29,8 +26,6 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    
-    app.ApplyMigrations();
 }
 
 app.MapGet("/", async context =>
