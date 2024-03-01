@@ -16,6 +16,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ApplicationDbContext>(optionsBuilder =>
     optionsBuilder.UseInMemoryDatabase("url-shortener-db"));
 builder.Services.AddScoped<UrlShorteningService>();
+builder.Services.AddOptions<UrlShorteningServiceOptions>()
+    .Configure(o => builder.Configuration.Bind(o));
 
 var app = builder.Build();
 
@@ -44,7 +46,7 @@ app.MapPost("api/shorten", async (ShortenUrlRequest req,
         return Results.BadRequest("The specified URL is invalid.");
     }
 
-    var code = urlShorteningService.GenerateUniqueCode();
+    var code = urlShorteningService.GetOrAddCode(req.Url);
     var shortenedUrl = new ShortenedUrl
     {
         Id = Guid.NewGuid(),
